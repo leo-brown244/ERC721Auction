@@ -1,5 +1,5 @@
 
-# Created by https://www.gitignore.io/api/solidity
+# Created by https://www.gitignore.io/api/solidity,soliditytruffle
 
 ### Solidity ###
 # Logs
@@ -76,5 +76,29 @@ typings/
 # Serverless directories
 .serverless
 
+### SolidityTruffle ###
+# depedencies
+node_modules
 
-# End of https://www.gitignore.io/api/solidity
+# testing
+
+# production
+build
+build_webpack
+
+# misc
+.DS_Store
+npm-debug.log
+.truffle-solidity-loader
+.vagrant/**
+blockchain/geth/**
+blockchain/keystore/**
+blockchain/history
+
+#truffle
+.tern-port
+yarn.lock
+package-lock.json
+
+
+# End of https://www.gitignore.io/api/solidity,soliditytruffle
