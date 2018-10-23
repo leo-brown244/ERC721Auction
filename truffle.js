@@ -15,4 +15,12 @@
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
   // to customize your Truffle configuration!
+	 networks:{
+     // ganachi-cli -p 9545
+     development: {
+         host: "localhost",
+         port: 9545,
+         network_id: "*"
+     }
+	 }
 };

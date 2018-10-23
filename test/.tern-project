@@ -1,0 +1,12 @@
+# https://github.com/ain/.vim/issues/46
+{
+  "plugins": {
+    "node": {},
+    "es_modules": {}
+  },
+  "libs": [
+    "ecma5",
+    "ecma6"
+  ],
+  "ecmaVersion": 6
+}

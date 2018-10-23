@@ -1,9 +1,8 @@
 pragma solidity ^0.4.24;
 
 import "./ExchangeableToERC20.sol";
-import "../../node_modules/openzeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
-//import "../node_modules/openzeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
-import "../../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "../../../node_modules/openzeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
+//import "../../../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
 **	https://programtheblockchain.com/posts/2018/03/20/writing-a-token-auction-contract/
@@ -20,7 +19,7 @@ import "../../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract Auction {
 
-	using SafeMath for uint256;
+//	using SafeMath for uint256;
 
 	ExchangeableToERC20	public item;
 	ERC20 	public token;
@@ -35,8 +34,12 @@ contract Auction {
 	uint256 public auctionEnd;	
 
 	constructor(
-		ExchangeableToERC20 _item,
-		ERC20 	_token,
+	) public {
+	}
+
+	function initAuction(
+		ExchangeableToERC20	_item,
+		uint256 _item_Id,
 		uint256 _reservePrice,
 		uint256 _minIncrement,
 		uint256 _timeoutPeriod,
@@ -46,7 +49,10 @@ contract Auction {
 		// TODO Contract Account에서 Contract Account 발행하는 방법
 
 		item = _item;
-		token = _token;
+		token = item.token();
+
+		seller = msg.sender;
+		item_Id = _item_Id;
 
 		reservePrice = _reservePrice;
 		minIncrement = _minIncrement;
@@ -58,42 +64,32 @@ contract Auction {
 	/*
 	**	입찰 기능 구현
 	**	입찰 후 token의 allowed를 수정할 가능성 및 낙찰자의 토큰 잔고가 부족할 수 있다.
-		**	이 경우 차상위 입찰자가 낙찰받는다.
-		*/
+	**	이 경우 차상위 입찰자가 낙찰받는다.
+	*/
 	address highBidder;	// 현재 최고 입찰자
 	address[] lastHighBidderList;		// 지난 최고 입찰자 명단, 순서대로 기록한다.
 	mapping(address => uint256) bidAmount;	// 입찰시 금액을 기록한다.
 	event Bid(address highBidder, uint256 highBid);
 
-	function bid(uint256 amount) public returns(bool){	// msg.sender == bidder
+	function bid(ERC20 _token, uint256 _amount) public returns(uint256){	// msg.sender == bidder
 		require(now < auctionEnd);
-		require(amount >= reservePrice);
-		require(amount >= bidAmount[highBidder]+minIncrement);
+		require(_amount >= reservePrice);
+		require(_amount >= bidAmount[highBidder]+minIncrement);
 
-		uint256 lastBid = token.allowance(msg.sender, address(this) );
+		require(token == _token);	// 지정된 토큰만 받는다.
 
-		if( lastBid == 0 ){
-			token.approve(address(this), amount);
-			bidAmount[msg.sender] = amount;
-		} else {	
-			// 입찰한 적이 있다면 allowance 수정 -> ERC20 Standard token 표준
-			token.approve(address(this), 0);	// clear
-			token.approve(address(this), amount);
-			// 한 트랜잭션 내에서 이뤄지기 대문에 increase를 쓸 필요 없을것이다.
-			// uint256 increment = amount.sub(lastBid);	
-			// token.increaseApproval( address(this), increment );
-			bidAmount[msg.sender] = amount;
-		}
-
-		require(token.allowance(msg.sender, address(this)) == bidAmount[msg.sender] );
+		bidAmount[msg.sender] = _amount;
+		//require(token.allowance( msg.sender, address(this)) == bidAmount[msg.sender] );	//revert here
+		// token.allowance(msg.sender, address(this)) return 0;
 
 		// 최상이 입찰자 수정
 		if( highBidder != address(0) )
 			lastHighBidderList.push(highBidder);
 		highBidder = msg.sender;
 
-		emit Bid(highBidder, amount);
-		return true;
+		emit Bid(highBidder, _amount);
+		return bidAmount[msg.sender];
+		//return token.allowance(msg.sender, address(this));	// return 0;
 	}
 
 	/**
@@ -123,13 +119,15 @@ contract Auction {
 
 	function _transferItem() private returns(bool){
 		bool isExchanged = false;
+		uint256 value = bidAmount[highBidder];
 
 		for(uint256 index = lastHighBidderList.length ; index >= 0 ; index-- ){
-			if( item.exchange( highBidder, item_Id ) == true){
+			if( item.exchange( highBidder, item_Id, value ) == true){
 				isExchanged = true;
 				break;
 			} else {
 				highBidder = lastHighBidderList[ index ];
+				value = bidAmount[highBidder];
 			}
 		}
 
