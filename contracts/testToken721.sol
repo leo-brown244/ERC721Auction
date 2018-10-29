@@ -19,11 +19,14 @@ contract MyToken721 is ERC721Token, ExchangeableToERC20{
 			token = _token;
 		}
 
-	function exchange(address _to, uint256 _tokenId, uint256 _value) public returns(bool) {
-		if( token.transferFrom(_to, msg.sender, _value) )
+	function exchange(address _buyer, uint256 _tokenId, uint256 _value) public returns(bool) {
+		address owner = ownerOf(_tokenId);
+
+		// revert here
+		if( token.transferFrom(_buyer, owner, _value) )
 			return false;
 
-		this.transferFrom(msg.sender, _to, _tokenId);
+		transferFrom(owner, _buyer, _tokenId);
 
 		return true;
 	}
@@ -34,13 +37,15 @@ contract MyToken721 is ERC721Token, ExchangeableToERC20{
 
 	function sell(
 		Auction _auction,
-		uint256 _tokenId, uint256 _reservePrice, uint256 _timeoutPeriod, uint256 _auctionEnd)
+		uint256 _tokenId, uint256 _reservePrice, uint256 _timeoutPeriod)
 		public {
 
 		auction = _auction;
 		auction.initAuction(
-			this, _tokenId, _reservePrice, _reservePrice/10, _timeoutPeriod, _auctionEnd
+			this, _tokenId, _reservePrice, _reservePrice/10, _timeoutPeriod
 		);
+
+		approve(_auction, _tokenId);
 
 	}
 }

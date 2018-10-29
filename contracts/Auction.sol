@@ -19,7 +19,7 @@ import "../../../node_modules/openzeppelin-solidity/contracts/token/ERC20/Standa
 
 contract Auction {
 
-//	using SafeMath for uint256;
+	using SafeMath for uint256;
 
 	ExchangeableToERC20	public item;
 	ERC20 	public token;
@@ -42,8 +42,7 @@ contract Auction {
 		uint256 _item_Id,
 		uint256 _reservePrice,
 		uint256 _minIncrement,
-		uint256 _timeoutPeriod,
-		uint256 _auctionEnd
+		uint256 _timeoutPeriod
 	) public {
 		// KGEticket 컨트랙트에서 발행되는 스마트 컨트랙트이다.
 		// TODO Contract Account에서 Contract Account 발행하는 방법
@@ -58,7 +57,7 @@ contract Auction {
 		minIncrement = _minIncrement;
 		timeoutPeriod = _timeoutPeriod;
 
-		auctionEnd = _auctionEnd;  
+		auctionEnd = now.add( timeoutPeriod );  
 	}
 
 	/*
@@ -87,6 +86,8 @@ contract Auction {
 			lastHighBidderList.push(highBidder);
 		highBidder = msg.sender;
 
+		auctionEnd = now.add( timeoutPeriod );
+
 		emit Bid(highBidder, _amount);
 		return bidAmount[msg.sender];
 		//return token.allowance(msg.sender, address(this));	// return 0;
@@ -97,7 +98,7 @@ contract Auction {
 	**
 	*/
 	event AuctionFailure(uint256 _item_Id);
-	event AuctionSuccess(address _winner, uint256 _item_Id);
+	event AuctionSuccess(address _seller, address _winner, uint256 _item_Id, uint256 _value);
 
 	function resolve() public returns(bool){
 		require(now >= auctionEnd);
@@ -109,7 +110,11 @@ contract Auction {
 			// 낙찰
 			// 아무도 잔고를 남겨놓지 않으면 주인에게 돌아간다.
 			if ( _transferItem() )
-				emit AuctionSuccess(highBidder, item_Id);
+				emit AuctionSuccess(seller, 
+														highBidder, 
+														item_Id,
+														bidAmount[highBidder]
+													 );
 			else {
 				_auctionFail();
 			}

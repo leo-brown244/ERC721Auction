@@ -2,6 +2,9 @@ const Contract20 = artifacts.require("MyToken20");
 const Contract721 = artifacts.require("MyToken721");
 const ContractAuction = artifacts.require("Auction");
 
+const { latestTime } = require('../../../node_modules/openzeppelin-solidity/test/helpers/latestTime');
+const { increaseTimeTo, duration } = require('../../../node_modules/openzeppelin-solidity/test/helpers/increaseTime');
+
 contract("Auction Test", async()=>{
 
 	var token20;
@@ -23,38 +26,42 @@ contract("Auction Test", async()=>{
 		token721 	= await Contract721.deployed();
 		auction 	= await ContractAuction.deployed();
 
+		await token20.setToken(token721.address, {from:manager});
+
 		assert.isTrue(token20 != null);
 		assert.isTrue(token721 != null);
 		assert.isTrue(auction != null);
 	});
 
 	it("Mint token", async()=>{
-		await token721.mint(seller, token721Id, {from:manager});
 
+		// erc20 토큰 발행
 		var tokenAmountWei = web3.toWei(token20Amount);
 		for(var i = 0; i < 8 ; i++){
 			await token20.mint(bidder[i], tokenAmountWei, {from:manager});
 		}
+
+		// erc721 토큰 발행
+		await token721.mint(seller, token721Id, {from:manager});
+		// 721 토큰 소유자 확인
+		assert.equal( seller, await token721.ownerOf(token721Id) );
 	});
 
 	it("Init auction", async()=>{
 
 		var now = Date.now();
-		var period = new Date().setSeconds(180).valueOf();
-		var totalTestTime = new Date().setMinutes(10).valueOf();
+		var period = new Date().setSeconds(30).valueOf();
 
 		var reservePrice = web3.toWei(1000, "ether");
-		var minIncrement = web3.toWei(10, "ether");
 		var timeOutPeriod = new web3.BigNumber( period ).toNumber();
-		var timeOutPeriod = period;
-		var auctionEnd = new web3.BigNumber( now + totalTestTime ).toNumber();
+		//var timeOutPeriod = period;
+		timeOutPeriod = duration.seconds(60);
 
 		await token721.sell(
 			auction.address,
 			token721Id,
 			reservePrice,
 			timeOutPeriod,
-			auctionEnd,
 			{from:seller}
 		);
 
@@ -85,4 +92,29 @@ contract("Auction Test", async()=>{
 //			console.log();
 //		}
 	});
+
+	it("token approved check", async()=>{
+		var approved2Auction = await token20.allowance(bidder[2], auction.address, {from:manager});
+		var approved2Token721= await token20.allowance(bidder[2], token721.address, {from:manager});
+
+		console.log("Auction  : " + web3.fromWei(approved2Auction));
+		console.log("Token721 : " + web3.fromWei(approved2Token721));
+	});
+
+	it("Resolve", async()=>{
+		var endTime = (await latestTime()) + duration.seconds(60);
+		await increaseTimeTo(endTime);
+		
+		var result = await auction.resolve({from:manager});
+
+		console.log('result.logs');
+		for(var i = 0; i < result.logs.length; i++){
+			console.log(result.logs[i].event);
+			console.log(result.logs[i].args);
+			console.log();
+		}
+		// 721 토큰 소유자 변경 확인
+//		assert.equal( seller, await token721.ownerOf(token721Id) );
+	});
+
 });
